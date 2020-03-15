@@ -1,2 +1,2 @@
-# sets
-Sets Game
+# Set
+Set the Game
