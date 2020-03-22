@@ -1,0 +1,23 @@
+<div fxFlexFill fxLayout="column">
+    <mat-toolbar fxLayoutGap="1em">
+        <span></span>
+        <span></span>
+        
+        <span>{{cardCount}} Cards Left</span>
+        
+        <mat-chip-list aria-label="Fish selection">
+            <mat-chip><mat-icon>timer</mat-icon>&nbsp;&nbsp;{{elapsedTime}}</mat-chip>
+            <mat-chip color="primary" selected><mat-icon>check_circle</mat-icon>&nbsp;&nbsp; {{setCount}} Sets</mat-chip>
+            <mat-chip color="warn" selected><mat-icon>error</mat-icon>&nbsp;&nbsp;{{failedAttempts}} Wrong</mat-chip>
+        </mat-chip-list>
+        <!-- Deal more cards -->
+        <button mat-button (click)="dealMoreCards()"><mat-icon>add_box</mat-icon> Deal</button>
+        <!-- Hint -->
+        <button mat-button (click)="hint()"><mat-icon>help_outline</mat-icon> Hint</button>
+    </mat-toolbar>
+    <mat-grid-list fxFlex cols="4" rowHeight="fit">
+        <mat-grid-tile *ngFor="let card of cards">
+            <app-card [card]="card" [selected]="card.selected" (click)="selectCard(card)"></app-card>
+        </mat-grid-tile>
+    </mat-grid-list>
+</div>
