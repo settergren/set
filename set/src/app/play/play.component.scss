@@ -1,0 +1,18 @@
+.surface {
+    background-image: url('/assets/images/brushed.png');
+    background-repeat: repeat;
+    overflow: hidden;
+}
+
+mat-progress-bar {
+    width: 300px;
+}
+
+mat-grid-list {
+    margin: 50px;
+    overflow: visible;
+
+    mat-grid-tile {
+        overflow: visible;
+    }
+}

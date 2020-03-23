@@ -45,4 +45,16 @@ export class Deck {
         return count > 0 && count <= this.cards.length ? this.cards.splice(0, count) : [];
     }
 
+    /**
+     * Insert a card back into the deck
+     * @param card
+     */
+    public insert(card: Card) {
+        if (!this.cards.includes(card)) {
+            //const pos = Math.floor(Math.random() * this.cards.length);
+            //this.cards.splice(pos, 0, card);
+            this.cards.push(card);
+        }
+    }
+
 }

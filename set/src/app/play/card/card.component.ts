@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, HostBinding, Input, OnChanges, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostBinding, HostListener, Input, OnChanges, OnInit, ViewChild } from '@angular/core';
 
 import { Card, COUNT, FILL, SHAPE } from '../card';
 
@@ -10,6 +10,14 @@ import { Card, COUNT, FILL, SHAPE } from '../card';
 export class CardComponent implements AfterViewInit, OnChanges, OnInit {
 
   @HostBinding('class.selected') @Input() selected = false;
+
+  @HostBinding('class.removed') @Input() removed = false;
+
+  @HostBinding('class.placed') @Input() placed = false;
+
+  @HostListener('window:resize') onResize() {
+    this.render();
+  }
 
   @Input() public card: Card;
 
@@ -44,9 +52,18 @@ export class CardComponent implements AfterViewInit, OnChanges, OnInit {
     this.canvas.width = this.canvas.parentElement.offsetWidth;
   }
 
+  /**
+   * Render
+   */
   private render() {
     // Resize Canvas
     this.resize();
+
+    // Workaround when canvas cannot be sized right away, try again
+    if (this.canvas.width === 0 || this.canvas.height === 0) {
+      setTimeout(() => this.render(), 100);
+      return;
+    }
 
     // Erase
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);

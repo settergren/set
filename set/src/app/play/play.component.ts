@@ -1,4 +1,5 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, TemplateRef, ViewChild } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 
 import { Card } from './card';
 
@@ -9,13 +10,9 @@ import { Deck } from './deck';
   templateUrl: './play.component.html',
   styleUrls: ['./play.component.scss']
 })
-export class PlayComponent implements OnInit {
+export class PlayComponent implements OnDestroy, OnInit {
 
-  private maxCards = 12;
-
-  private deck = new Deck();
-
-  private cards: Card[] = [];
+  public meter = 100;
 
   public setCount = 0;
 
@@ -23,28 +20,67 @@ export class PlayComponent implements OnInit {
 
   public startTime = new Date();
 
-  constructor() { }
+  public sound = true;
+
+  public gameOver = false;
+
+  public elapsedTime = 0;
+
+  private timer: any;
+
+  private maxCards = 12;
+
+  private deck = new Deck();
+
+  private cards: Card[] = [];
+
+  private tickSound = new Audio('assets/sounds/tick.wav');
+
+  private shuffleSound = new Audio('assets/sounds/shuffle.wav');
+
+  private successSound = new Audio('assets/sounds/success.wav');
+
+  private popSound = new Audio('assets/sounds/pop.wav');
+
+  private dealSound = new Audio('assets/sounds/deal.wav');
+
+  private errorSound = new Audio('assets/sounds/error.wav');
+
+  @ViewChild('gameOverDialog', {static: true}) private gameOverDialog: TemplateRef<any>;
+
+  constructor(private dialog: MatDialog) { }
 
   ngOnInit() {
-    this.draw();
+    this.deal();
+
+    // Start timer to deplete the health meter
+    this.timer = setInterval(() => {
+      if (this.sound) this.tickSound.play();
+      this.elapsedTime++;
+      this.updateMeter(-1);
+    }, 1000);
+  }
+
+  ngOnDestroy() {
+    clearInterval(this.timer);
   }
 
   public get cardCount(): number {
     return this.deck.size + this.cards.length;
   }
 
-  public get elapsedTime(): string {
-    const ms = new Date().getTime() - this.startTime.getTime();
-    return Math.floor(ms / 1000) + ' Seconds';
-  }
-
   public selectCard(card: Card) {
     card.selected = !card.selected;
+
+    if (this.sound) {
+      this.popSound.play();
+    }
 
     // Get selected cards and validate set
     const selected = this.cards.filter(card => card.selected);
     if (selected.length === 3) {
-      this.chooseSet(selected);
+      // Choose set with a slight delay (allows the selection to render and adds suspense)
+      setTimeout(() => this.chooseSet(selected), 500);
     }
   }
 
@@ -53,26 +89,68 @@ export class PlayComponent implements OnInit {
   };
 
   /**
-   * Deal more cards if there are no sets left
+   * Re-deals the cards.
    */
-  public dealMoreCards() {
-    // First, make sure there are no sets!
+  public reDeal() {
+    // First, check to see if there is an available set. If there is then
+    // give a penalty.
     const sets = this.findSets();
-    if (sets.length === 0) {
-      this.draw(3);
+    if (sets.length) {
+      this.penalty(-20);
     }
-    else {
-      // Increase failed attempts
-      this.failedAttempts++;
-    }
+
+    if (this.sound) this.shuffleSound.play();
+
+    const cards = this.cards.concat([]);
+    cards.forEach((card, i) => {
+      setTimeout(() => {
+        this.replaceCard(card, true);
+      }, 150 * i);
+    });
+
+    // this.cards.forEach((card, i) => {
+    //   setTimeout(() => {
+    //     card.removed = true;
+    //     setTimeout(() => {
+    //       this.deck.insert(card);
+    //       this.cards.splice(i, 1, null);
+    //     }, 500);
+    //   }, 50 * i);
+    // });
+
+
+    // TODO
   }
 
+  // /**
+  //  * Deal more cards if there are no sets left
+  //  */
+  // public dealMoreCards() {
+  //   // First, make sure there are no sets!
+  //   const sets = this.findSets();
+  //   if (sets.length === 0) {
+  //     //this.draw(3);
+  //   }
+  //   else {
+  //     this.updateMeter(-20);
+  //     this.failedAttempts++;
+  //   }
+  // }
+
+  /**
+   * Get a hint with a penalty. The hint will select a card in a set.
+   */
   public hint() {
-    this.failedAttempts++;
+    this.penalty(-10);
     const sets = this.findSets();
     if (sets.length) {
       const set = sets.shift();
-      this.selectCard(set[0]);
+
+      const unselected = set.filter(card => !card.selected);
+      unselected[0].selected = true;
+      
+      // if (!set[0].selected) this.selectCard(set[0]);
+      // else if (!set[1].selected) this.selectCard(set[])
     }
   }
 
@@ -81,19 +159,107 @@ export class PlayComponent implements OnInit {
    * @param cards Cards
    */
   public chooseSet(cards: Card[]) {
-    if (this.isSet(cards)) {
-      // Increase set count!
-      this.setCount++;
-      // Remove set!
-      this.cards = this.cards.filter(card => !cards.includes(card));
-      // Draw cards to replace
-      this.draw();
+    this.isSet(cards) ? this.set(cards) : this.failedSet();
+  }
+
+  /**
+   * Give the user a penalty.
+   */
+  private penalty(amount: number = -20) {
+    this.failedAttempts++;
+    this.updateMeter(amount);
+    if (this.sound) this.errorSound.play();
+  }
+
+  /**
+   * Update the meter value
+   * @param value meter difference
+   */
+  private updateMeter(value) {
+    this.meter += value;
+    if (this.meter <= 0) {
+      this.endGame();
     }
-    else {
-      // Increase failed attempts!
-      this.failedAttempts++;
-      this.unselectAll();
-    }
+  }
+
+  /**
+   * End the game
+   */
+  private endGame() {
+    this.gameOver = true;
+    clearInterval(this.timer);
+    this.dialog.open(this.gameOverDialog);
+  }
+
+  /**
+   * Handle a valid set by increasing score, replacing cards
+   * @param cards Cards in the set
+   */
+  private set(cards: Card[]) {
+    // Increase set count!
+    this.setCount++;
+
+    this.updateMeter(20);
+
+    if (this.sound) this.successSound.play();
+
+    // Visually remove each card by flagging as removed
+    cards.forEach((card, i) => {
+      setTimeout(() => {
+        this.replaceCard(card);
+      }, 500 * i);
+    });
+  }
+
+  /**
+   * Exchange a card with the deck
+   * @param card
+   */
+  private exchangeCard(card: Card) {
+    card.removed = true;
+    setTimeout(() => {
+      const index = this.cards.indexOf(card);
+      // Replace card with null
+      this.cards.splice(index, 1, null);
+      // Put card back into deck
+      this.deck.insert(card);
+
+      setTimeout(() => {
+        // Draw a new card and put
+        const newCard = this.deck.draw(1)[0];
+        this.cards.splice(index, 1, newCard);
+        setTimeout(() => {
+          newCard.placed = true;
+        }, 500);
+      }, 500);
+    }, 500);
+  }
+
+  /**
+   * Removes a card from the table
+   */
+  private replaceCard(card: Card, reInsert: boolean = false) {
+    card.removed = true;
+    setTimeout(() => {
+      if (reInsert) this.deck.insert(card);
+      const index = this.cards.indexOf(card);
+      // Replace card with null
+      this.cards.splice(index, 1, null);
+      setTimeout(() => {
+        // Draw a new card and put
+        if (this.sound) this.dealSound.play();
+        const newCard = this.deck.draw(1)[0];
+        this.cards.splice(index, 1, newCard);
+        setTimeout(() => {
+          newCard.placed = true;
+        }, 500);
+      }, 500);
+    }, 500);
+  }
+
+  private failedSet() {
+    this.penalty(-20);
+    this.unselectAll();
   }
 
   public isSet(cards: Card[]) {
@@ -125,19 +291,29 @@ export class PlayComponent implements OnInit {
   }
 
   /**
-   * Draw cards from deck
+   * Deal cards from deck
    */
-  private draw(count?: number) {
-    if (!count) {
-      count = this.maxCards - this.cards.length;
-    }
-    this.cards = this.cards.concat(this.deck.draw(count));
+  private deal() {
+    if (this.sound) this.shuffleSound.play();
+
+    this.cards = new Array(this.maxCards);
+
+    // Draw twelve cards from the deck
+    const cards = this.deck.draw(this.maxCards);
+    // Place each card one at a time (visual effect)
+    cards.forEach((card, i) => {
+      setTimeout(() => {
+        if (this.sound) this.dealSound.play();
+        card.placed = true;
+        this.cards.splice(i, 1, card);
+      }, 100 * i);
+    });
   }
 
   /**
    * Find all possible sets
    */
-  private findSets(): Card[] {
+  private findSets(): Card[][] {
     return this.cards.reduce((sets, a) => {
       return this.cards.reduce((sets, b) => {
         return this.cards.reduce((sets, c) => {

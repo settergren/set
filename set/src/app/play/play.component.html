@@ -1,23 +1,44 @@
-<div fxFlexFill fxLayout="column">
+<div fxFlexFill fxLayout="column" class="surface">
     <mat-toolbar fxLayoutGap="1em">
-        <span></span>
-        <span></span>
-        
-        <span>{{cardCount}} Cards Left</span>
+
+        <mat-progress-bar [value]="meter"></mat-progress-bar>
         
         <mat-chip-list aria-label="Fish selection">
-            <mat-chip><mat-icon>timer</mat-icon>&nbsp;&nbsp;{{elapsedTime}}</mat-chip>
-            <mat-chip color="primary" selected><mat-icon>check_circle</mat-icon>&nbsp;&nbsp; {{setCount}} Sets</mat-chip>
-            <mat-chip color="warn" selected><mat-icon>error</mat-icon>&nbsp;&nbsp;{{failedAttempts}} Wrong</mat-chip>
+            <mat-chip>{{elapsedTime}} seconds</mat-chip>
+            <mat-chip>{{cardCount}} Cards Left</mat-chip>
+            <mat-chip color="primary" selected>{{setCount}} Sets</mat-chip>
+            <mat-chip color="warn" selected>{{failedAttempts}} Penalties</mat-chip>
         </mat-chip-list>
+        <!-- Re-Deal -->
+        <button mat-button (click)="reDeal()"><mat-icon>refresh</mat-icon> Re-Deal</button>
         <!-- Deal more cards -->
-        <button mat-button (click)="dealMoreCards()"><mat-icon>add_box</mat-icon> Deal</button>
+        <!-- <button mat-button (click)="dealMoreCards()"><mat-icon>add_box</mat-icon> Deal</button> -->
         <!-- Hint -->
         <button mat-button (click)="hint()"><mat-icon>help_outline</mat-icon> Hint</button>
+        <!-- Toggle Sound-->
+        <mat-slide-toggle [(ngModel)]="sound">Sound</mat-slide-toggle>
     </mat-toolbar>
-    <mat-grid-list fxFlex cols="4" rowHeight="fit">
+    <!-- Cards Grid List -->
+    <mat-grid-list fxFlex cols="4" rowHeight="fit" gutterSize="50px">
         <mat-grid-tile *ngFor="let card of cards">
-            <app-card [card]="card" [selected]="card.selected" (click)="selectCard(card)"></app-card>
+            <!-- Card -->
+            <app-card *ngIf="card"
+                [card]="card"
+                [selected]="card.selected"
+                [removed]="card.removed"
+                [placed]="card.placed"
+                (click)="selectCard(card)">
+            </app-card>
         </mat-grid-tile>
     </mat-grid-list>
 </div>
+
+<ng-template #gameOverDialog>
+    <h2 mat-dialog-title>GAME OVER</h2>
+    <mat-dialog-content>
+        You found {{setCount}} sets with {{failedAttempts}} penalties in a total of {{elapsedTime}} seconds!
+    </mat-dialog-content>
+    <mat-dialog-actions>
+        <button mat-button [mat-dialog-close]="true">New Game</button>
+    </mat-dialog-actions>
+</ng-template>

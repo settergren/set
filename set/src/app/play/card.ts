@@ -29,6 +29,10 @@ export class Card {
 
     public selected = false;
 
+    public removed = false;
+
+    public placed = false;
+
     constructor(public color: COLOR,
                 public shape: SHAPE,
                 public count: COUNT,
